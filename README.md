@@ -1,9 +1,12 @@
 # A Lean proof of "Dark Side of the Moon"
 
-A small, fully machine-checked Lean 4 + Mathlib formalization of the physics behind
+A small, fully machine-checked **Lean 4 + Mathlib** formalization of the physics behind
 the famous prism image: **white light is a sum of frequencies (a Fourier
 decomposition), a prism sends each frequency to a different angle, and the screen
 shows the Fourier spectrum `|Ê(ω)|²`.**
+
+Every declaration is independently certified by **[Tenet](#independent-verification-with-tenet)** —
+no `sorry`, no added axioms.
 
 ![A prism splits light into its Fourier components](docs/prism-fourier.svg)
 
@@ -61,7 +64,40 @@ theorem signal_eq_sum_phasors (S : Spectrum n) (t : ℝ) :
 
 ---
 
-## Verifying it yourself
+## Built and verified with Lean Studio
+
+This proof was developed with **[Lean Studio](https://leanstudio.dev)**, which drives
+Lean's own language server and Lake build tool and gives live goal states, Mathlib
+search, and an independent proof checker. Lean Studio can export a step-by-step
+walkthrough of every tactic proof — here is `intensity`, with the goal state before and
+after each tactic and a green check where a branch is discharged:
+
+![Lean Studio step-by-step walkthrough of the intensity proof](docs/screenshots/lean-studio-walkthrough.png)
+
+> Regenerate this page any time from [`docs/proof-walkthrough.html`](docs/proof-walkthrough.html),
+> or step through all three proofs interactively in the
+> [Lean 4 web editor](https://live.lean-lang.org/).
+
+## Independent verification with Tenet
+
+A clean `lake build` already means Lean's kernel accepted every proof with no `sorry`.
+For a second, independent guarantee, **Tenet** (bundled with Lean Studio) re-checks each
+compiled declaration with a *separate* Lean kernel and reports anything that secretly
+rests on `sorry` or on an axiom the project introduced. The result for this project:
+
+![Tenet independent verification: 19 verified, 0 resting on an assumption, 0 rejected](docs/screenshots/tenet-verification.png)
+
+```
+Tenet checked 19 declarations in 1 module (Lean 4.34.1):
+  19 verified, 0 resting on an assumption, 0 rejected.
+```
+
+No `sorry`, no project-introduced axioms — only Lean/Mathlib's standard foundations
+(`propext`, `Classical.choice`, `Quot.sound`).
+
+---
+
+## Build it yourself
 
 Requires [`elan`](https://github.com/leanprover/elan) (the Lean toolchain manager).
 The pinned toolchain (`lean-toolchain`) and Mathlib revision (`lake-manifest.json`)
@@ -78,18 +114,6 @@ lake build
 A theorem is only proved when the build reports no errors **and** no
 `declaration uses 'sorry'` warning. This project has neither.
 
-### Independent certification
-
-Every declaration in `DarkSide.Basic` was additionally re-checked by
-[Tenet](https://leanstudio.dev), an independent Lean kernel:
-
-```
-Tenet checked 19 declarations in 1 module (Lean 4.34.1):
-  19 verified, 0 resting on an assumption, 0 rejected.
-```
-
-No `sorry`, no project-introduced axioms — only Lean/Mathlib's standard foundations.
-
 ---
 
 ## Scope, honestly
@@ -103,6 +127,10 @@ also not yet formalized.
 
 ## License / attribution
 
-Lean source released under the Apache 2.0 license. "Dark Side of the Moon" is an album
-by Pink Floyd; its title and cover artwork are the property of their respective rights
-holders and are not reproduced in this repository.
+- Lean source and the prism illustration: released under the terms in
+  [`LICENSE`](LICENSE) (source) and CC0 (the illustration).
+- Built with [Lean 4](https://lean-lang.org), [Mathlib](https://github.com/leanprover-community/mathlib4),
+  and [Lean Studio](https://leanstudio.dev) (Tenet).
+- "Dark Side of the Moon" is an album by Pink Floyd; its title and cover artwork are the
+  property of their respective rights holders and are **not** reproduced in this
+  repository.

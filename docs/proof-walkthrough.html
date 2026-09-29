@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Basic.lean · proof walkthrough</title>
+<style>
+:root { --bg:#fbfaf8; --fg:#1d1d1f; --dim:#6b6b70; --card:#ffffff; --line:#e4e2dd; --accent:#3f6fd8; --ok:#1f8a3b; --code:#f3f1ec; }
+@media (prefers-color-scheme: dark) { :root { --bg:#16171a; --fg:#e6e6e9; --dim:#9a9aa3; --card:#1e2024; --line:#2e3036; --accent:#7aa2f7; --ok:#4cc36b; --code:#23252b; } }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.55 -apple-system, "Segoe UI", system-ui, sans-serif; }
+main { max-width: 860px; margin: 0 auto; padding: 32px 16px 64px; }
+h1 { font-size: 28px; margin: 0 0 4px; } h2 { font-size: 20px; margin: 0 0 12px; }
+.sub, .line, .words, footer, .explain { color: var(--dim); }
+.line { font-size: 13px; font-weight: normal; margin-left: 6px; }
+a { color: var(--accent); }
+.button { display:inline-block; padding:6px 14px; border:1px solid var(--accent); border-radius:6px; text-decoration:none; }
+nav { margin: 20px 0; display:flex; flex-wrap:wrap; gap:6px 12px; font-size:14px; }
+pre, code { font-family: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace; font-size: 14px; }
+pre { margin: 0; white-space: pre-wrap; word-break: break-word; }
+pre.code { background: var(--code); padding: 12px 14px; border-radius: 8px; }
+.proof { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px; margin: 24px 0; }
+.state { margin-top: 8px; }
+.state.start { margin: 12px 0 4px; }
+.label { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--dim); margin-bottom: 4px; }
+.goal { border-left: 3px solid var(--accent); padding: 6px 10px; margin: 4px 0; background: var(--code); border-radius: 0 6px 6px 0; }
+.none { color: var(--ok); font-weight: 600; }
+ol.steps { list-style: none; counter-reset: s; padding: 0; margin: 16px 0 0; }
+.step { counter-increment: s; position: relative; padding: 12px 12px 12px 44px; border-top: 1px solid var(--line); outline: none; }
+.step::before { content: counter(s); position: absolute; left: 8px; top: 12px; width: 24px; height: 24px; border-radius: 50%;
+                background: var(--code); color: var(--dim); font-size: 13px; text-align: center; line-height: 24px; }
+.step.done::before { background: var(--ok); color: #fff; content: "✓"; }
+.step.current { background: color-mix(in srgb, var(--accent) 8%, transparent); border-radius: 8px; }
+.tactic { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; }
+.tactic code { font-weight: 600; }
+.change { font-size: 13px; color: var(--dim); }
+.explain { margin: 4px 0 0; font-size: 14px; }
+details.source { margin-top: 24px; } footer { margin-top: 32px; font-size: 13px; }</style></head><body>
+<main>
+<header><h1>Basic.lean</h1><p class="sub">A step-by-step walkthrough of 3 proofs. Each step shows the tactic, what it does, and the goals Lean is left with. Use ← and → to step through.</p><p><a class="button" href="https://live.lean-lang.org/#code=%2F-%0ACopyright%20%28c%29%202026%20Keith%20Adler.%20All%20rights%20reserved.%0AReleased%20under%20Apache%202.0%20license%20as%20described%20in%20the%20file%20LICENSE.%0AAuthors%3A%20Keith%20Adler%0A-%2F%0Aimport%20Mathlib%0A%0A%2F-%21%0A%23%20A%20Lean%20proof%20of%20%22Dark%20Side%20of%20the%20Moon%22%0A%0AThe%20famous%20prism%20cover%2C%20read%20as%20physics%3A%20white%20light%20is%20a%20%2A%2Asum%20of%20frequencies%2A%2A%0A%28a%20Fourier%20decomposition%29%2C%20the%20glass%20disperses%20each%20frequency%20to%20a%20different%0Aangle%2C%20and%20the%20screen%20shows%20the%20%2A%2AFourier%20spectrum%2A%2A%20%60%7C%C3%8A%28%CF%89%29%7C%C2%B2%60.%0A%0AWe%20formalize%20panel%201%20%28the%20decomposition%29%20and%20panel%203%20%28the%20intensity%29.%0A-%2F%0A%0Aopen%20scoped%20BigOperators%0A%0Anamespace%20DarkSide%0A%0A%2F--%20A%20spectrum%3A%20finitely%20many%20modes%2C%20each%20with%20a%20real%20amplitude%20%60a%E2%82%96%60%2C%0A%20%20%20%20angular%20frequency%20%60%CF%89%E2%82%96%60%2C%20and%20phase%20%60%CF%86%E2%82%96%60.%20-%2F%0Astructure%20Spectrum%20%28n%20%3A%20%E2%84%95%29%20where%0A%20%20amp%20%3A%20Fin%20n%20%E2%86%92%20%E2%84%9D%0A%20%20freq%20%3A%20Fin%20n%20%E2%86%92%20%E2%84%9D%0A%20%20phase%20%3A%20Fin%20n%20%E2%86%92%20%E2%84%9D%0A%0Avariable%20%7Bn%20%3A%20%E2%84%95%7D%0A%0A%2F--%20%2A%2APanel%201.%2A%2A%20The%20real%20light%20signal%20%60E%28t%29%20%3D%20%CE%A3%E2%82%96%20a%E2%82%96%20cos%28%CF%89%E2%82%96%20t%20%2B%20%CF%86%E2%82%96%29%60.%20-%2F%0Anoncomputable%20def%20signal%20%28S%20%3A%20Spectrum%20n%29%20%28t%20%3A%20%E2%84%9D%29%20%3A%20%E2%84%9D%20%3A%3D%0A%20%20%E2%88%91%20k%2C%20S.amp%20k%20%2A%20Real.cos%20%28S.freq%20k%20%2A%20t%20%2B%20S.phase%20k%29%0A%0A%2F--%20The%20complex%20Fourier%20amplitude%20%60%C3%8A%28%CF%89%E2%82%96%29%20%3D%20a%E2%82%96%20e%5E%7Bi%20%CF%86%E2%82%96%7D%60%3A%20the%20phasor%20of%20mode%20%60k%60.%20-%2F%0Anoncomputable%20def%20phasor%20%28S%20%3A%20Spectrum%20n%29%20%28k%20%3A%20Fin%20n%29%20%3A%20%E2%84%82%20%3A%3D%0A%20%20%28S.amp%20k%20%3A%20%E2%84%82%29%20%2A%20Complex.exp%20%28%28S.phase%20k%20%3A%20%E2%84%82%29%20%2A%20Complex.I%29%0A%0A%2F--%20%2A%2APanel%203%20%28the%20screen%29.%2A%2A%20The%20intensity%20of%20mode%20%60k%60%20is%20%60%7C%C3%8A%28%CF%89%E2%82%96%29%7C%C2%B2%20%3D%20a%E2%82%96%C2%B2%60.%20-%2F%0Atheorem%20intensity%20%28S%20%3A%20Spectrum%20n%29%20%28k%20%3A%20Fin%20n%29%20%3A%0A%20%20%20%20Complex.normSq%20%28phasor%20S%20k%29%20%3D%20%28S.amp%20k%29%20%5E%202%20%3A%3D%20by%0A%20%20unfold%20phasor%0A%20%20rw%20%5BComplex.normSq_mul%2C%20Complex.normSq_ofReal%5D%0A%20%20have%20h%20%3A%20Complex.normSq%20%28Complex.exp%20%28%28S.phase%20k%20%3A%20%E2%84%82%29%20%2A%20Complex.I%29%29%20%3D%201%20%3A%3D%20by%0A%20%20%20%20rw%20%5BComplex.normSq_apply%2C%20Complex.exp_ofReal_mul_I_re%2C%20Complex.exp_ofReal_mul_I_im%5D%0A%20%20%20%20nlinarith%20%5BReal.sin_sq_add_cos_sq%20%28S.phase%20k%29%5D%0A%20%20rw%20%5Bh%5D%3B%20ring%0A%0A%2F--%20Each%20mode%20is%20the%20real%20part%20of%20its%20rotating%20phasor%20%60c%E2%82%96%20e%5E%7Bi%20%CF%89%E2%82%96%20t%7D%60.%20-%2F%0Atheorem%20mode_reconstruction%20%28S%20%3A%20Spectrum%20n%29%20%28k%20%3A%20Fin%20n%29%20%28t%20%3A%20%E2%84%9D%29%20%3A%0A%20%20%20%20%28phasor%20S%20k%20%2A%20Complex.exp%20%28%28S.freq%20k%20%3A%20%E2%84%82%29%20%2A%20%28t%20%3A%20%E2%84%82%29%20%2A%20Complex.I%29%29.re%0A%20%20%20%20%20%20%3D%20S.amp%20k%20%2A%20Real.cos%20%28S.freq%20k%20%2A%20t%20%2B%20S.phase%20k%29%20%3A%3D%20by%0A%20%20unfold%20phasor%0A%20%20rw%20%5Bmul_assoc%2C%20%E2%86%90%20Complex.exp_add%5D%0A%20%20have%20hsum%20%3A%20%28S.phase%20k%20%3A%20%E2%84%82%29%20%2A%20Complex.I%20%2B%20%28S.freq%20k%20%3A%20%E2%84%82%29%20%2A%20%28t%20%3A%20%E2%84%82%29%20%2A%20Complex.I%0A%20%20%20%20%20%20%3D%20%28%28S.freq%20k%20%2A%20t%20%2B%20S.phase%20k%20%3A%20%E2%84%9D%29%20%3A%20%E2%84%82%29%20%2A%20Complex.I%20%3A%3D%20by%0A%20%20%20%20push_cast%3B%20ring%0A%20%20rw%20%5Bhsum%2C%20Complex.re_ofReal_mul%2C%20Complex.exp_ofReal_mul_I_re%5D%0A%0A%2F--%20%2A%2APanel%201%20%E2%87%84%20Panel%203.%2A%2A%20The%20whole%20signal%20is%20the%20real%20part%20of%20the%20sum%20of%20its%0A%20%20%20%20rotating%20Fourier%20phasors.%20-%2F%0Atheorem%20signal_eq_sum_phasors%20%28S%20%3A%20Spectrum%20n%29%20%28t%20%3A%20%E2%84%9D%29%20%3A%0A%20%20%20%20signal%20S%20t%0A%20%20%20%20%20%20%3D%20%28%E2%88%91%20k%2C%20phasor%20S%20k%20%2A%20Complex.exp%20%28%28S.freq%20k%20%3A%20%E2%84%82%29%20%2A%20%28t%20%3A%20%E2%84%82%29%20%2A%20Complex.I%29%29.re%20%3A%3D%20by%0A%20%20rw%20%5BComplex.re_sum%5D%0A%20%20unfold%20signal%0A%20%20refine%20Finset.sum_congr%20rfl%20%3F_%0A%20%20intro%20k%20_%0A%20%20exact%20%28mode_reconstruction%20S%20k%20t%29.symm%0A%0Aend%20DarkSide%0A">Run this file in the Lean 4 web editor ↗</a></p></header>
+<nav><strong>Proofs</strong> <a href="#p39">intensity</a> <a href="#p49">mode_reconstruction</a> <a href="#p61">signal_eq_sum_phasors</a></nav>
+<section class="proof" id="p39">
+<h2>intensity <span class="line">line 40</span></h2>
+<pre class="code">theorem intensity (S : Spectrum n) (k : Fin n) :
+    Complex.normSq (phasor S k) = (S.amp k) ^ 2 := by</pre>
+<p class="words">In words: Complex.normSq (phasor S k) equals S.amp k ^ 2</p>
+<div class="state start"><div class="label">Goal to prove</div><pre class="goal">n : ℕ
+S : Spectrum n
+k : Fin n
+⊢ Complex.normSq (phasor S k) = S.amp k ^ 2</pre></div>
+<ol class="steps">
+<li class="step" tabindex="0"><div class="tactic"><code>unfold phasor</code><span class="change">goal rewritten</span></div><p class="explain">Replaces a defined name by its definition.</p><div class="state"><pre class="goal">n : ℕ
+S : Spectrum n
+k : Fin n
+⊢ Complex.normSq (↑(S.amp k) * Complex.exp (↑(S.phase k) * Complex.I)) = S.amp k ^ 2</pre></div></li>
+<li class="step" tabindex="0"><div class="tactic"><code>rw [Complex.normSq_mul, Complex.normSq_ofReal]</code><span class="change">goal rewritten</span></div><p class="explain">Rewrites: given h : a = b, replaces a by b in the goal. Several at once: rw [h1, h2]. Right to left: rw [← h].</p><div class="state"><pre class="goal">n : ℕ
+S : Spectrum n
+k : Fin n
+⊢ S.amp k * S.amp k * Complex.normSq (Complex.exp (↑(S.phase k) * Complex.I)) = S.amp k ^ 2</pre></div></li>
+<li class="step" tabindex="0"><div class="tactic"><code>have h : Complex.normSq (Complex.exp ((S.phase k : ℂ) * Complex.I)) = 1 := by</code><span class="change">goal rewritten</span></div><p class="explain">States and proves an intermediate fact, then adds it to your hypotheses.</p><div class="state"><div class="none">✓ No goals left: this part of the proof is complete.</div></div></li>
+<li class="step" tabindex="0"><div class="tactic"><code>rw [Complex.normSq_apply, Complex.exp_ofReal_mul_I_re, Complex.exp_ofReal_mul_I_im]</code><span class="change">goal rewritten</span></div><p class="explain">Rewrites: given h : a = b, replaces a by b in the goal. Several at once: rw [h1, h2]. Right to left: rw [← h].</p><div class="state"><pre class="goal">n : ℕ
+S : Spectrum n
+k : Fin n
+⊢ Real.cos (S.phase k) * Real.cos (S.phase k) + Real.sin (S.phase k) * Real.sin (S.phase k) = 1</pre></div></li>
+<li class="step done" tabindex="0"><div class="tactic"><code>nlinarith [Real.sin_sq_add_cos_sq (S.phase k)]</code><span class="change">goals accomplished</span></div><div class="state"><div class="none">✓ No goals left: this part of the proof is complete.</div></div></li>
+<li class="step done" tabindex="0"><div class="tactic"><code>rw [h]; ring</code><span class="change">goals accomplished</span></div><p class="explain">Rewrites: given h : a = b, replaces a by b in the goal. Several at once: rw [h1, h2]. Right to left: rw [← h].</p><div class="state"><div class="none">✓ No goals left: this part of the proof is complete.</div></div></li>
+</ol>
+</section>
+<section class="proof" id="p49">
+<h2>mode_reconstruction <span class="line">line 50</span></h2>
+<pre class="code">theorem mode_reconstruction (S : Spectrum n) (k : Fin n) (t : ℝ) :
+    (phasor S k * Complex.exp ((S.freq k : ℂ) * (t : ℂ) * Complex.I)).re
+      = S.amp k * Real.cos (S.freq k * t + S.phase k) := by</pre>
+<p class="words">In words: (phasor S k * Complex.exp (↑(S.freq k) * ↑t * Complex.I)).re equals S.amp k * Real.cos (S.freq k * t + S.phase k)</p>
+<div class="state start"><div class="label">Goal to prove</div><pre class="goal">n : ℕ
+S : Spectrum n
+k : Fin n
+t : ℝ
+⊢ (phasor S k * Complex.exp (↑(S.freq k) * ↑t * Complex.I)).re = S.amp k * Real.cos (S.freq k * t + S.phase k)</pre></div>
+<ol class="steps">
+<li class="step" tabindex="0"><div class="tactic"><code>unfold phasor</code><span class="change">goal rewritten</span></div><p class="explain">Replaces a defined name by its definition.</p><div class="state"><pre class="goal">n : ℕ
+S : Spectrum n
+k : Fin n
+t : ℝ
+⊢ (↑(S.amp k) * Complex.exp (↑(S.phase k) * Complex.I) * Complex.exp (↑(S.freq k) * ↑t * Complex.I)).re =
+  S.amp k * Real.cos (S.freq k * t + S.phase k)</pre></div></li>
+<li class="step" tabindex="0"><div class="tactic"><code>rw [mul_assoc, ← Complex.exp_add]</code><span class="change">goal rewritten</span></div><p class="explain">Rewrites: given h : a = b, replaces a by b in the goal. Several at once: rw [h1, h2]. Right to left: rw [← h].</p><div class="state"><pre class="goal">n : ℕ
+S : Spectrum n
+k : Fin n
+t : ℝ
+⊢ (↑(S.amp k) * Complex.exp (↑(S.phase k) * Complex.I + ↑(S.freq k) * ↑t * Complex.I)).re =
+  S.amp k * Real.cos (S.freq k * t + S.phase k)</pre></div></li>
+<li class="step" tabindex="0"><div class="tactic"><code>have hsum : (S.phase k : ℂ) * Complex.I + (S.freq k : ℂ) * (t : ℂ) * Complex.I</code><span class="change">continues below</span></div><p class="explain">States and proves an intermediate fact, then adds it to your hypotheses.</p></li>
+<li class="step" tabindex="0"><div class="tactic"><code>= ((S.freq k * t + S.phase k : ℝ) : ℂ) * Complex.I := by</code><span class="change">goal rewritten</span></div><div class="state"><pre class="goal">n : ℕ
+S : Spectrum n
+k : Fin n
+t : ℝ
+⊢ ↑(S.phase k) * Complex.I + ↑(S.freq k) * ↑t * Complex.I = ↑(S.freq k * t + S.phase k) * Complex.I</pre></div></li>
+<li class="step done" tabindex="0"><div class="tactic"><code>push_cast; ring</code><span class="change">goals accomplished</span></div><div class="state"><div class="none">✓ No goals left: this part of the proof is complete.</div></div></li>
+<li class="step done" tabindex="0"><div class="tactic"><code>rw [hsum, Complex.re_ofReal_mul, Complex.exp_ofReal_mul_I_re]</code><span class="change">goals accomplished</span></div><p class="explain">Rewrites: given h : a = b, replaces a by b in the goal. Several at once: rw [h1, h2]. Right to left: rw [← h].</p><div class="state"><div class="none">✓ No goals left: this part of the proof is complete.</div></div></li>
+</ol>
+</section>
+<section class="proof" id="p61">
+<h2>signal_eq_sum_phasors <span class="line">line 62</span></h2>
+<pre class="code">theorem signal_eq_sum_phasors (S : Spectrum n) (t : ℝ) :
+    signal S t
+      = (∑ k, phasor S k * Complex.exp ((S.freq k : ℂ) * (t : ℂ) * Complex.I)).re := by</pre>
+<p class="words">In words: signal S t equals (∑ k, phasor S k * Complex.exp (↑(S.freq k) * ↑t * Complex.I)).re</p>
+<div class="state start"><div class="label">Goal to prove</div><pre class="goal">n : ℕ
+S : Spectrum n
+t : ℝ
+⊢ signal S t = (∑ k, phasor S k * Complex.exp (↑(S.freq k) * ↑t * Complex.I)).re</pre></div>
+<ol class="steps">
+<li class="step" tabindex="0"><div class="tactic"><code>rw [Complex.re_sum]</code><span class="change">goal rewritten</span></div><p class="explain">Rewrites: given h : a = b, replaces a by b in the goal. Several at once: rw [h1, h2]. Right to left: rw [← h].</p><div class="state"><pre class="goal">n : ℕ
+S : Spectrum n
+t : ℝ
+⊢ signal S t = ∑ i, (phasor S i * Complex.exp (↑(S.freq i) * ↑t * Complex.I)).re</pre></div></li>
+<li class="step" tabindex="0"><div class="tactic"><code>unfold signal</code><span class="change">goal rewritten</span></div><p class="explain">Replaces a defined name by its definition.</p><div class="state"><pre class="goal">n : ℕ
+S : Spectrum n
+t : ℝ
+⊢ ∑ k, S.amp k * Real.cos (S.freq k * t + S.phase k) = ∑ i, (phasor S i * Complex.exp (↑(S.freq i) * ↑t * Complex.I)).re</pre></div></li>
+<li class="step" tabindex="0"><div class="tactic"><code>refine Finset.sum_congr rfl ?_</code><span class="change">goal rewritten</span></div><p class="explain">Like exact, but with holes (?_) that become new goals.</p><div class="state"><pre class="goal">n : ℕ
+S : Spectrum n
+t : ℝ
+⊢ ∀ x ∈ Finset.univ,
+  S.amp x * Real.cos (S.freq x * t + S.phase x) = (phasor S x * Complex.exp (↑(S.freq x) * ↑t * Complex.I)).re</pre></div></li>
+<li class="step" tabindex="0"><div class="tactic"><code>intro k _</code><span class="change">+k  +a✝</span></div><p class="explain">Proves &quot;if … then …&quot; or &quot;for all …&quot; by assuming the premise: moves it from the goal into your hypotheses, under the name you give.</p><div class="state"><pre class="goal">n : ℕ
+S : Spectrum n
+t : ℝ
+k : Fin n
+a✝ : k ∈ Finset.univ
+⊢ S.amp k * Real.cos (S.freq k * t + S.phase k) = (phasor S k * Complex.exp (↑(S.freq k) * ↑t * Complex.I)).re</pre></div></li>
+<li class="step done" tabindex="0"><div class="tactic"><code>exact (mode_reconstruction S k t).symm</code><span class="change">goals accomplished</span></div><p class="explain">Finishes the goal with a term that proves exactly it. The most common last step.</p><div class="state"><div class="none">✓ No goals left: this part of the proof is complete.</div></div></li>
+</ol>
+</section>
+<details class="source"><summary>The whole file</summary><pre class="code">/-
+Copyright (c) 2026 Keith Adler. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Keith Adler
+-/
+import Mathlib
+
+/-!
+# A Lean proof of &quot;Dark Side of the Moon&quot;
+
+The famous prism cover, read as physics: white light is a **sum of frequencies**
+(a Fourier decomposition), the glass disperses each frequency to a different
+angle, and the screen shows the **Fourier spectrum** `|&#202;(ω)|&#178;`.
+
+We formalize panel 1 (the decomposition) and panel 3 (the intensity).
+-/
+
+open scoped BigOperators
+
+namespace DarkSide
+
+/-- A spectrum: finitely many modes, each with a real amplitude `aₖ`,
+    angular frequency `ωₖ`, and phase `φₖ`. -/
+structure Spectrum (n : ℕ) where
+  amp : Fin n → ℝ
+  freq : Fin n → ℝ
+  phase : Fin n → ℝ
+
+variable {n : ℕ}
+
+/-- **Panel 1.** The real light signal `E(t) = Σₖ aₖ cos(ωₖ t + φₖ)`. -/
+noncomputable def signal (S : Spectrum n) (t : ℝ) : ℝ :=
+  ∑ k, S.amp k * Real.cos (S.freq k * t + S.phase k)
+
+/-- The complex Fourier amplitude `&#202;(ωₖ) = aₖ e^{i φₖ}`: the phasor of mode `k`. -/
+noncomputable def phasor (S : Spectrum n) (k : Fin n) : ℂ :=
+  (S.amp k : ℂ) * Complex.exp ((S.phase k : ℂ) * Complex.I)
+
+/-- **Panel 3 (the screen).** The intensity of mode `k` is `|&#202;(ωₖ)|&#178; = aₖ&#178;`. -/
+theorem intensity (S : Spectrum n) (k : Fin n) :
+    Complex.normSq (phasor S k) = (S.amp k) ^ 2 := by
+  unfold phasor
+  rw [Complex.normSq_mul, Complex.normSq_ofReal]
+  have h : Complex.normSq (Complex.exp ((S.phase k : ℂ) * Complex.I)) = 1 := by
+    rw [Complex.normSq_apply, Complex.exp_ofReal_mul_I_re, Complex.exp_ofReal_mul_I_im]
+    nlinarith [Real.sin_sq_add_cos_sq (S.phase k)]
+  rw [h]; ring
+
+/-- Each mode is the real part of its rotating phasor `cₖ e^{i ωₖ t}`. -/
+theorem mode_reconstruction (S : Spectrum n) (k : Fin n) (t : ℝ) :
+    (phasor S k * Complex.exp ((S.freq k : ℂ) * (t : ℂ) * Complex.I)).re
+      = S.amp k * Real.cos (S.freq k * t + S.phase k) := by
+  unfold phasor
+  rw [mul_assoc, ← Complex.exp_add]
+  have hsum : (S.phase k : ℂ) * Complex.I + (S.freq k : ℂ) * (t : ℂ) * Complex.I
+      = ((S.freq k * t + S.phase k : ℝ) : ℂ) * Complex.I := by
+    push_cast; ring
+  rw [hsum, Complex.re_ofReal_mul, Complex.exp_ofReal_mul_I_re]
+
+/-- **Panel 1 ⇄ Panel 3.** The whole signal is the real part of the sum of its
+    rotating Fourier phasors. -/
+theorem signal_eq_sum_phasors (S : Spectrum n) (t : ℝ) :
+    signal S t
+      = (∑ k, phasor S k * Complex.exp ((S.freq k : ℂ) * (t : ℂ) * Complex.I)).re := by
+  rw [Complex.re_sum]
+  unfold signal
+  refine Finset.sum_congr rfl ?_
+  intro k _
+  exact (mode_reconstruction S k t).symm
+
+end DarkSide
+</pre></details>
+<footer>Made with <a href="https://github.com/keithadler/leanstudio">Lean Studio</a>, by Keith Adler (<a href="https://x.com/keithadler">@keithadler</a>). Goals are exactly as Lean reported them.</footer>
+</main>
+<script>
+const steps = [...document.querySelectorAll('.step')];
+let at = -1;
+function go(i) {
+  if (i < 0 || i >= steps.length) return;
+  steps.forEach(s => s.classList.remove('current'));
+  at = i; steps[i].classList.add('current'); steps[i].focus({ preventScroll: true });
+  steps[i].scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+steps.forEach((s, i) => s.addEventListener('click', () => go(i)));
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === 'j') { go(at + 1); e.preventDefault(); }
+  if (e.key === 'ArrowLeft' || e.key === 'k') { go(at - 1); e.preventDefault(); }
+});</script>
+</body></html>
